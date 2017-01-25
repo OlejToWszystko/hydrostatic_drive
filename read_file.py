@@ -94,28 +94,10 @@ class Measurment():
 		# po wypełnieniu aux_list, nadpisz listę values
 		# najpierw wyczyszczona zostaje lista self.values
 		del self.values[:]
-		# skopioiwanie aux_list do pustej listy self.values
+		# skopiowanie aux_list do pustej listy self.values
 		self.values[:] = aux_list[:] 
-		
-	
-	def measurment_to_dict(self):
-		'''
-		Tworzy słownik z wczytanych pomiarów, gdzie kluczami są nazwy
-		kanałów, a wartościami - listy, w których pierwszym elementem 
-		jest jednostka, a kolejnymi odpowiednie, zmierzone wielkości 
-		fizyczne.
-		
-		{channel : [unit, value_0, value_1, ... , value_n], ... }
-		'''	
-		# Zapisanie kluczy w słowniku i przypisanie im jednostek
-		i = 0
-		for channel in self.channels:
-			self.dictMeasurment[channel] = self.units[i]
-			# for line in self.values:
-				
-			i += 1
+					
 			
-				
 	def print_units(self):
 		'''Drukuje listę jednostek'''
 		units_string = ''
@@ -124,6 +106,7 @@ class Measurment():
 		# usunięcie znaku '\t' z ostatniej kolumny
 		units_string = units_string.rstrip()
 		print(units_string)
+		
 		
 	def print_channels(self):
 		'''drukuje listę kanałów'''
