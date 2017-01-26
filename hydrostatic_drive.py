@@ -5,6 +5,12 @@
 
 from math import pi
 
+
+def euler(x, dx, dt):
+	x_new = x + dx * dt
+	return x_new
+	
+
 class PressureReliefValve():
 	'''
 	Obiekt reprezentujący zawór przelewowy.
@@ -83,8 +89,135 @@ class HydrostaticDrive():
 		self.c = c
 		self.prv = prv
 		self.receiver = receiver
+	
+		
+	def diff_pressure(self, Qp, p, vt=0, Qz=0):
+		''' 
+		Metoda obliczająca pochodną ciśnienia po czasie w układzie, na 
+		podstawie równania bilansu przepływu w układzie
+		'''
+		if self.receiver:
+			dp = (
+					-(self.a/self.c)*p - (self.receiver.At/self.c)*vt
+					- (Qz/self.c) + (Qp/self.c)
+					)
+		else:
+			dp = -(self.a/self.c)*p - (Qz/self.c) + (Qp/self.c)
+			
+		return dp
+	
+	
+	def actuation(self, t, t_start, tr, Qp_meas):
+		'''
+		Funkcja generująca sygnał wymuszający w postaci natężenia
+		przepływu.
+		'''
+		if t < t_start:
+			Q_act = 0
+		elif t < (t_start + tr):
+			Q_act = (t - t_start)/(tr) * Qp_meas/60000
+		else:
+			Q_act = Qp_meas/60000
+			
+		return Q_act
 		
 		
+	def simulation(self, t_start, tr, freq, Qp_meas):
+		'''
+		Główna pętla symulacji
+		'''
+		
+		i_max = len(Qp_meas)
+		t = 0
+		dt = 1.0/freq
+		if self.receiver and self.prv:
+			p, Qz, vt = 0, 0, 0
+			# utworzenie pustego słownika z wynikami symulacji
+			sim_res = {
+				't' : [],
+				'Q_act' : [],
+				'p' : [],
+				'Qz' : [],
+				'vt' : [],
+				}
+			for i in range(i_max):
+				# wymuszenie
+				Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
+				# pochodna ciśnienia
+				dp = self.diff_pressure(Q_act, p, vt, Qz)
+				# pochodna prędkości
+				dvt = self.receiver.acceleration(p, vt)
+				# pochodna przepływu przez zawór
+				dQz = self.prv.diff_flow_rate(p, Qz)
+				# zapis wartości do słownika
+				sim_res['t'].append(t)
+				sim_res['Q_act'].append(Q_act * 60000)
+				sim_res['p'].append(p / 10**5)
+				sim_res['Qz'].append(Qz * 60000)
+				sim_res['vt'].append(vt)
+				# metoda Eulera
+				p = euler(p, dp, dt)
+				vt = euler(vt, dvt, dt)
+				Qz = euler(Qz, dQz, dt)
+				t += dt
+				
+		elif self.receiver:
+			p, vt = 0, 0
+			# utworzenie pustego słownika z wynikami symulacji
+			sim_res = {
+				't' : [],
+				'Q_act' : [],
+				'p' : [],
+				'vt' : [],
+				}
+			for i in range(i_max):
+				# wymuszenie
+				Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
+				# pochodna ciśnienia
+				dp = self.diff_pressure(Q_act, p, vt)
+				# pochodna prędkości
+				dvt = self.receiver.acceleration(p, vt)
+				# zapis wartości do słownika
+				sim_res['t'].append(t)
+				sim_res['Q_act'].append(Q_act * 60000)
+				sim_res['p'].append(p / 10**5)
+				sim_res['vt'].append(vt)
+				# metoda Eulera
+				p = euler(p, dp, dt)
+				vt = euler(vt, dvt, dt)
+				t += dt
+				
+		elif self.prv:
+			p, Qz = 0, 0
+			# utworzenie pustego słownika z wynikami symulacji
+			sim_res = {
+				't' : [],
+				'Q_act' : [],
+				'p' : [],
+				'Qz' : [],
+				}
+			for i in range(i_max):
+				# wymuszenie
+				Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
+				# pochodna ciśnienia
+				#dp = self.diff_pressure(Q_act, p, 0, Qz)
+				# pochodna przepływu przez zawór
+				#dQz = self.prv.diff_flow_rate(p, Qz)
+				# zapis wartości do słownika
+				sim_res['t'].append(t)
+				sim_res['Q_act'].append(Q_act * 60000)
+				#sim_res['p'].append(p / 10**5)
+				#sim_res['Qz'].append(Qz * 60000)
+				# metoda Eulera
+				#p = euler(p, dp, dt)
+				#Qz = euler(Qz, dQz, dt)
+				t += dt
+		
+		return sim_res
+		
+			
+			
+			
 
 
 def main(args):

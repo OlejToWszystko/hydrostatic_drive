@@ -7,10 +7,16 @@
 
 from read_file import Measurment
 from matplotlib import pyplot as plt
+from hydrostatic_drive import *
+
 
 # Utworzenie obiektu, który jest instancją klasy Measurment
 # Plik z pomiarami zaworu proporcjonalnego
 ZawProp = Measurment('85_2500.txt')
+
+# Utworzenie obiektów modeli symulacyjnych
+naped_hydr = HydrostaticDrive(1, 1)
+wyniki_sym = naped_hydr.simulation(0, 0.05, 4800, ZawProp.values[4])
 
 # Utworzenie obiektów klasy Figure (1 obiekt) oraz Axes (dwa obiekty)
 fig1, (sp1, sp2) = plt.subplots(1, 2)
@@ -25,6 +31,7 @@ sp1_other = sp1.twinx()
 sp1_other.plot(ZawProp.values[0], ZawProp.values[4], c='r')
 sp1_other.plot(ZawProp.values[0], ZawProp.values[3], c='green')
 sp1_other.plot(ZawProp.values[0], ZawProp.values[2], c='pink')
+sp1_other.plot(wyniki_sym['t'], wyniki_sym['Q_act'], c='yellow')
 
 # utworzenie serii danych p(t) na obiekcie sp2
 sp2.plot(ZawProp.values[0], ZawProp.values[5])
