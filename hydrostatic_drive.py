@@ -71,60 +71,18 @@ class HydrostaticDrive():
 	Klasa reprezentująca układ hydrostatyczny.
 	'''
 	
-	def __init__(
-		self, a, c, if_prv=True, if_receiver=False, prv_kwargs=None,
-		receiver_kwargs=None,
-		):
+	def __init__(self, a, c, prv=PressureReliefValve(), receiver=None):
 		'''
 		Inicjalizacja układu hydrostatycznego.
 		
 		a - współczynnik przecieków
 		c - kapacytancja układau
-		if_prv - czy obecny jest zawór ciśnieniowy
-		if_receiver - czy obecny jest odbiornik
 		'''
 		
 		self.a = a
 		self.c = c
-		self.if_prv = if_prv
-		self.if_receiver = if_receiver
-		self.prv_kwargs = prv_kwargs
-		self.receiver_kwargs = receiver_kwargs
-		self.components()
-		
-		
-	def components(self):
-		'''
-		Tworzy opcjonalne obiekty układu hydrostatycznego.
-		'''
-		if self.if_prv:
-			if self.prv_kwargs:
-				prv_parameters_list = ['Tz', 'pz', 'hz']
-				prv_parameters = {}
-				for prv_parameter in prv_parameters_list:
-					if prv_parameter in self.prv_kwargs.keys():
-						prv_parameters[prv_parameter] = ( 
-							self.prv_kwargs[prv_parameter]
-							)
-				self.prv = PressureReliefValve(**prv_parameters)
-			else:
-				self.prv = PressureReliefValve()
-		
-		if self.if_receiver:
-			if self.receiver_kwargs:
-				receiver_parameters_list = ['dt', 'f', 'mq']
-				receiver_parameters = {}
-				for receiver_parameter in receiver_parameters_list:
-					if (receiver_parameter in 
-						self.receiver_kwargs.keys()
-						):
-						receiver_parameters[receiver_parameter] = ( 
-							self.receiver_kwargs[receiver_parameter]
-							)
-				self.receiver = LinearReceiver(**receiver_parameters)
-			else:
-				self.receiver = LinearReceiver()		 
-			
+		self.prv = prv
+		self.receiver = receiver
 		
 		
 
@@ -140,12 +98,11 @@ if __name__ == '__main__':
     print('hz = ' + str(Zawor.hz))
     print('pz = ' + str(Zawor.pz))
     
-    valveParam = {'pz' : 250, 'hz' : 4, 'Tz' : 0.07, 'Tz2' : 1}
+    valveParam = {'pz' : 250, 'hz' : 4, 'Tz' : 0.07}
     receiverParam = {'f' : 2500, 'dt' : 0.069, 'mq' : 900}
-    hydr_sys = HydrostaticDrive(
-		1, 1, prv_kwargs=valveParam, if_receiver=True, 
-		receiver_kwargs=receiverParam,
-		)
+    Zawor2 = PressureReliefValve(**valveParam)
+    silownik = LinearReceiver(**receiverParam)
+    hydr_sys = HydrostaticDrive(1, 1, prv=Zawor2, receiver=silownik)
 		
     print('Tz = ' + str(hydr_sys.prv.Tz))
     print('hz = ' + str(hydr_sys.prv.hz))
