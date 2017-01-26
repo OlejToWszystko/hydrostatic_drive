@@ -90,23 +90,40 @@ class HydrostaticDrive():
 		self.if_receiver = if_receiver
 		self.prv_kwargs = prv_kwargs
 		self.receiver_kwargs = receiver_kwargs
+		self.components()
 		
 		
 	def components(self):
 		'''
 		Tworzy opcjonalne obiekty układu hydrostatycznego.
 		'''
-		if if_prv:
+		if self.if_prv:
 			if self.prv_kwargs:
 				prv_parameters_list = ['Tz', 'pz', 'hz']
 				prv_parameters = {}
 				for prv_parameter in prv_parameters_list:
 					if prv_parameter in self.prv_kwargs.keys():
-						prv_parameters[prv_parameter] = self.prv_kwargs[prv_parameter]
+						prv_parameters[prv_parameter] = ( 
+							self.prv_kwargs[prv_parameter]
+							)
 				self.prv = PressureReliefValve(**prv_parameters)
 			else:
 				self.prv = PressureReliefValve()
-				 
+		
+		if self.if_receiver:
+			if self.receiver_kwargs:
+				receiver_parameters_list = ['dt', 'f', 'mq']
+				receiver_parameters = {}
+				for receiver_parameter in receiver_parameters_list:
+					if (receiver_parameter in 
+						self.receiver_kwargs.keys()
+						):
+						receiver_parameters[receiver_parameter] = ( 
+							self.receiver_kwargs[receiver_parameter]
+							)
+				self.receiver = LinearReceiver(**receiver_parameters)
+			else:
+				self.receiver = LinearReceiver()		 
 			
 		
 		
@@ -117,4 +134,25 @@ def main(args):
 
 if __name__ == '__main__':
     import sys
+    
+    Zawor = PressureReliefValve(Tz=0.01, hz=2, pz=150)
+    print('Tz = ' + str(Zawor.Tz))
+    print('hz = ' + str(Zawor.hz))
+    print('pz = ' + str(Zawor.pz))
+    
+    valveParam = {'pz' : 250, 'hz' : 4, 'Tz' : 0.07, 'Tz2' : 1}
+    receiverParam = {'f' : 2500, 'dt' : 0.069, 'mq' : 900}
+    hydr_sys = HydrostaticDrive(
+		1, 1, prv_kwargs=valveParam, if_receiver=True, 
+		receiver_kwargs=receiverParam,
+		)
+		
+    print('Tz = ' + str(hydr_sys.prv.Tz))
+    print('hz = ' + str(hydr_sys.prv.hz))
+    print('pz = ' + str(hydr_sys.prv.pz))
+    
+    
+    print('f = ' + str(hydr_sys.receiver.f))
+    print('dt = ' + str(hydr_sys.receiver.dt))
+    print('mq = ' + str(hydr_sys.receiver.mq))
     sys.exit(main(sys.argv))
