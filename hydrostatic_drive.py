@@ -85,8 +85,8 @@ class HydrostaticDrive():
 		c - kapacytancja układau
 		'''
 		
-		self.a = a
-		self.c = c
+		self.a = a * 10 ** (-12)
+		self.c = c * 10 ** (-12)
 		self.prv = prv
 		self.receiver = receiver
 	
@@ -200,17 +200,17 @@ class HydrostaticDrive():
 				# wymuszenie
 				Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
 				# pochodna ciśnienia
-				#dp = self.diff_pressure(Q_act, p, 0, Qz)
+				dp = self.diff_pressure(Q_act, p, 0, Qz)
 				# pochodna przepływu przez zawór
-				#dQz = self.prv.diff_flow_rate(p, Qz)
+				dQz = self.prv.diff_flow_rate(p, Qz)
 				# zapis wartości do słownika
 				sim_res['t'].append(t)
 				sim_res['Q_act'].append(Q_act * 60000)
-				#sim_res['p'].append(p / 10**5)
-				#sim_res['Qz'].append(Qz * 60000)
+				sim_res['p'].append(p / 10**5)
+				sim_res['Qz'].append(Qz * 60000)
 				# metoda Eulera
-				#p = euler(p, dp, dt)
-				#Qz = euler(Qz, dQz, dt)
+				p = euler(p, dp, dt)
+				Qz = euler(Qz, dQz, dt)
 				t += dt
 		
 		return sim_res
