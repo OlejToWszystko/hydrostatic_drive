@@ -159,6 +159,8 @@ class HydrostaticDrive():
 				p = euler(p, dp, dt)
 				vt = euler(vt, dvt, dt)
 				Qz = euler(Qz, dQz, dt)
+				if Qz >= (Qp_meas[i]/60000):
+					Qz = Qp_meas[i]/60000
 				t += dt
 				
 		elif self.receiver:
@@ -211,6 +213,8 @@ class HydrostaticDrive():
 				# metoda Eulera
 				p = euler(p, dp, dt)
 				Qz = euler(Qz, dQz, dt)
+				if Qz >= (Qp_meas[i]/60000):
+					Qz = Qp_meas[i]/60000
 				t += dt
 		
 		return sim_res

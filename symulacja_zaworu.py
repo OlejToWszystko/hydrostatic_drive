@@ -15,8 +15,8 @@ from hydrostatic_drive import *
 ZawProp = Measurment('85_2500.txt')
 
 # Utworzenie obiektów modeli symulacyjnych
-ZawSym = PressureReliefValve(Tz=0.0085, hz=1.85, pz=85)
-naped_hydr = HydrostaticDrive(0.8, 0.146, prv=ZawSym)
+ZawSym = PressureReliefValve(Tz=0.0095, hz=1.4, pz=81)
+naped_hydr = HydrostaticDrive(a=1.0, c=0.1, prv=ZawSym)
 wyniki_sym = naped_hydr.simulation(0.09, 0., 4800, ZawProp.values[4])
 
 # Utworzenie obiektów klasy Figure (1 obiekt) oraz Axes (dwa obiekty)
