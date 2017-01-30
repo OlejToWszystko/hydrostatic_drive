@@ -16,6 +16,10 @@ ZawProp = Measurment('85_2500.txt')
 
 # Utworzenie obiektów modeli symulacyjnych
 ZawSym = PressureReliefValve(Tz=0.0095, hz=1.4, pz=81)
+if type(ZawSym) == PressureReliefValveComplex:
+	print("Tak")
+else:
+	print("Nie")
 naped_hydr = HydrostaticDrive(a=1.0, c=0.1, prv=ZawSym)
 wyniki_sym = naped_hydr.simulation(0.09, 0., 4800, ZawProp.values[4])
 
