@@ -16,7 +16,10 @@ class PressureReliefValveComplex():
 	Szczegółowy model zaworu przelewowego.
 	'''
 	
-	def __init__(self, dg, lg, alfa, Cg, ksg, kmi, mg, msg, adj_force):
+	def __init__(
+		self, dg, lg, alfa, Cg, ksg, kmi, mg, msg, adj_force, dtl, Cst,
+		xt0, kst, dd, Cd, kmi_t, mt, mst, ro,
+		):
 		'''Inicjalizacja parametrów zaworu.'''
 		self.dg = dg * 0.001
 		self.lg = lg * 0.001
@@ -28,10 +31,31 @@ class PressureReliefValveComplex():
 		self.mg = mg
 		self.msg = msg
 		self.mgz = self.mg + 1/3 * self.msg
-		self.poppetArea = (pi / 4) * (self.dg ** 2)
+		self.poppetArea = self.area(self.dg)
 		self.adj_force = adj_force
 		self.fgz = self.equivalent_area()
 		
+		self.dtl = dtl * 0.001
+		self.Cst = Cst
+		self.xt0 = xt0
+		self.kst = kst
+		self.dd = dd * 0.001
+		self.Cd = Cd
+		self.fd = self.area(self.dd)
+		self.kmi_t = kmi_t
+		self.mt = mt
+		self.mst = mst
+		self.mtz = self.mt + 1/3 * self.mst 
+		self.spoolArea = self.area(self.dtl)
+		
+		self.ro = ro
+		
+		
+	def area(self, diameter):
+		'''Metoda obliczająca pole koła'''
+		A = pi * (diameter ** 2) / 4
+		
+		return A
 		
 	def equivalent_area(self):
 		'''Metoda obliczająca powierzchnię zastępczą grzybka'''
@@ -49,6 +73,13 @@ class PressureReliefValveComplex():
 		hydrostaticForce = pressure_drop * area
 		
 		return hydrostaticForce
+		
+		
+	def spring_force(self, x0, x, k):
+		'''Metoda obliczająca siłę sprężyny'''
+		Ps = k * (x0 + x)
+		
+		return Ps
 		
 		
 	def poppet_hydrodynamic_force(self, pressure_drop, 
@@ -73,6 +104,30 @@ class PressureReliefValveComplex():
 		return P_hdg 
 		
 		
+	def spool_hydrodynamic_force(self, p, xt):
+		''' 
+		Metoda obliczająca siłę hydrodynamiczną działającą na tłoczek
+		zaworu ciśnieniowego
+		'''
+		
+		P_hdt = 0.72 * self.Cst * pi * self.dtl * xt * p
+		
+		return P_hdt 
+		
+		
+	def spool_damping_force(self, vt):
+		'''
+		Metoda obliczająca siłę tłumiącą, wynikającą z przepływu cieczy
+		przez dławik, działającą na tłoczek głównego stopnia zaworu.
+		'''
+		P_damp = (
+			(self.ro * self.spoolArea ** 3) / (2 * (self.Cd ** 2) * 
+			(self.fd ** 2)) * vt ** 2
+			)
+			
+		return P_damp
+		
+		
 	def friction_force(self, coefficient, velocity):
 		'''
 		Metoda obliczająca siłę tarcia lepkiego.
@@ -80,15 +135,22 @@ class PressureReliefValveComplex():
 		return (coefficient * velocity)
 		
 		
-	def diff_equations(self, p, pt, xg, vg):
+	def diff_equations(self, p, pt, xg, vg, xt, vt):
 		'''
 		Równania różniczkowe zaworu przelewowego
 		'''
 		dvg = (
-			hydrostatic_force(self.fgz, pt) - 
-			poppet_hydrodynamic_force(pt, xg) - self.adj_force - 
-			friction_force(self.kmi, vg)
-			)
+			self.hydrostatic_force(self.fgz, pt) - 
+			self.poppet_hydrodynamic_force(pt, xg) - self.adj_force - 
+			self.friction_force(self.kmi, vg)
+			) * 1 / self.mgz
+		dvt = (
+			self.hydrostatic_force(self.spoolArea, (p-pt)) - 
+			self.spool_hydrodynamic_force(p, xt) - 
+			self.spring_force(self.xt0, xt, self.kst) -
+			self.spool_damping_force(vt) - 
+			self.friction_force(self.kmi_t, vt)
+			) * 1 / self.mtz 
 		 	
 			
 
