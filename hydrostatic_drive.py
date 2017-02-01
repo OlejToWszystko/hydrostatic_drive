@@ -3,7 +3,7 @@
 #
 #  hydrostatic_drive.py
 
-from math import pi, sin, cos, radians
+from math import pi, sin, cos, radians, sqrt
 
 
 def euler(x, dx, dt):
@@ -18,7 +18,7 @@ class PressureReliefValveComplex():
 	
 	def __init__(
 		self, dg, lg, alfa, Cg, ksg, kmi, mg, msg, adj_force, dtl, Cst,
-		xt0, kst, dd, Cd, kmi_t, mt, mst, ro,
+		xt0, kst, dd, Cd, kmi_t, mt, mst, ckt, ro,
 		):
 		'''Inicjalizacja parametrów zaworu.'''
 		self.dg = dg * 0.001
@@ -34,6 +34,7 @@ class PressureReliefValveComplex():
 		self.poppetArea = self.area(self.dg)
 		self.adj_force = adj_force
 		self.fgz = self.equivalent_area()
+		self.l2z = self.equivalent_lenght_l2z()
 		
 		self.dtl = dtl * 0.001
 		self.Cst = Cst
@@ -46,6 +47,7 @@ class PressureReliefValveComplex():
 		self.mt = mt
 		self.mst = mst
 		self.mtz = self.mt + 1/3 * self.mst 
+		self.ckt = ckt
 		self.spoolArea = self.area(self.dtl)
 		
 		self.ro = ro
@@ -68,6 +70,16 @@ class PressureReliefValveComplex():
 		return equivalentArea
 		
 		
+	def equivalent_lenght_l2z(self):
+		''' Metoda obliczająca długość zastępczą l2z. '''
+		l2z = (
+			pi * (sin(self.alfa) / cos(self.tetha - self.alfa)) 
+			* (self.dg + self.lg * sin(self.alfa))
+			)
+			
+		return l2z
+		
+		
 	def hydrostatic_force(self, area, pressure_drop):
 		'''Metoda obliczająca siłę hydrostatyczną'''
 		hydrostaticForce = pressure_drop * area
@@ -82,22 +94,14 @@ class PressureReliefValveComplex():
 		return Ps
 		
 		
-	def poppet_hydrodynamic_force(self, pressure_drop, 
-		poppet_displacement):
+	def poppet_hydrodynamic_force(self, pt, xg):
 		'''
 		Metoda obliczająca siłę hydrodynamiczną działającą na 
 		grzybek zaworu.
 		'''
-		l2z = (
-			pi * (sin(self.alfa) / cos(self.tetha - self.alfa)) 
-			* (self.dg + self.lg * sin(self.alfa))
-			)
-		xg = poppet_displacement
-		pt = pressure_drop
-		
 		P_hdg = (
-			2 * (self.Cg ** 2) * (l2z ** 2) * 
-			((xg * cos(self.tetha)) / l2z 
+			2 * (self.Cg ** 2) * (self.l2z ** 2) * 
+			((xg * cos(self.tetha)) / self.l2z 
 			- (xg ** 2) / self.poppetArea) * pt
 			)
 			
@@ -133,6 +137,43 @@ class PressureReliefValveComplex():
 		Metoda obliczająca siłę tarcia lepkiego.
 		'''
 		return (coefficient * velocity)
+	
+	
+	def throttle_flow_rate(self, p, pt):
+		'''
+		Metoda obliczająca natężenie przepływu w dławiku tłoczka.
+		'''
+		Qd = self.Cd * self.fd * sqrt(2 * (p - pt) / self.ro)
+		
+		return Qd
+		
+		
+	def spool_flow_rate(self, xt, p):
+		'''
+		Metoda obliczająca natężenie przepływu przez szczelinę 
+		utworzoną przez tłoczek.
+		'''
+		Qt = self.Cst * pi * self.dtl * xt * sqrt(2 * p / self.ro)
+		
+		return Qt
+		
+		
+	def poppet_flow_rate(self, xg, pt):
+		'''
+		Metoda obliczająca natężenie przepływu przez grzybek zaworu.
+		'''
+		Qg = self.Cg * xg * self.l2z * sqrt(2 * pt / self.ro)
+		
+		return Qg
+		
+		
+	def valve_flow_rate(self, p, pt, xt, xg):
+		'''
+		Metoda obliczająca natężenie przepływu przez zawór.
+		'''
+		Qz = self.poppet_flow_rate(xg, pt) + self.spool_flow_rate(xt, p)
+		
+		return Qz
 		
 		
 	def diff_equations(self, p, pt, xg, vg, xt, vt):
@@ -143,16 +184,27 @@ class PressureReliefValveComplex():
 			self.hydrostatic_force(self.fgz, pt) - 
 			self.poppet_hydrodynamic_force(pt, xg) - self.adj_force - 
 			self.friction_force(self.kmi, vg)
-			) * 1 / self.mgz
+			) / self.mgz
+			
 		dvt = (
 			self.hydrostatic_force(self.spoolArea, (p-pt)) - 
 			self.spool_hydrodynamic_force(p, xt) - 
 			self.spring_force(self.xt0, xt, self.kst) -
 			self.spool_damping_force(vt) - 
 			self.friction_force(self.kmi_t, vt)
-			) * 1 / self.mtz 
-		 	
+			) / self.mtz
+		 
+		dxg = vg
+		 
+		dxt = vt
+		
+		dpt = (
+			self.throttle_flow_rate(p, pt) + self.spoolArea * vt -
+			self.poppet_flow_rate(xg, pt) - self.poppetArea * vg
+			) / self.ckt
 			
+		return dpt, dxg, dvg, dxt, dvt
+				
 
 class PressureReliefValve():
 	'''
@@ -191,7 +243,7 @@ class PressureReliefValve():
 		Metoda obliczająca natężenie przepływu przez zawór.
 		'''
 		dQz = self.diff_flow_rate(p, Qz)
-		flowRate = euler(Qz, dQz, dt)
+		#flowRate = euler(Qz, dQz, dt)
 		
 		
 class LinearReceiver():
@@ -341,32 +393,75 @@ class HydrostaticDrive():
 				t += dt
 				
 		elif self.prv:
-			p, Qz = 0, 0
-			# utworzenie pustego słownika z wynikami symulacji
-			sim_res = {
-				't' : [],
-				'Q_act' : [],
-				'p' : [],
-				'Qz' : [],
-				}
-			for i in range(i_max):
-				# wymuszenie
-				Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
-				# pochodna ciśnienia
-				dp = self.diff_pressure(Q_act, p, 0, Qz)
-				# pochodna przepływu przez zawór
-				dQz = self.prv.diff_flow_rate(p, Qz)
-				# zapis wartości do słownika
-				sim_res['t'].append(t)
-				sim_res['Q_act'].append(Q_act * 60000)
-				sim_res['p'].append(p / 10**5)
-				sim_res['Qz'].append(Qz * 60000)
-				# metoda Eulera
-				p = euler(p, dp, dt)
-				Qz = euler(Qz, dQz, dt)
-				if Qz >= (Qp_meas[i]/60000):
-					Qz = Qp_meas[i]/60000
-				t += dt
+			if type(self.prv) == PressureReliefValve:
+				p, Qz = 0, 0
+				# utworzenie pustego słownika z wynikami symulacji
+				sim_res = {
+					't' : [],
+					'Q_act' : [],
+					'p' : [],
+					'Qz' : [],
+					}
+				for i in range(i_max):
+					# wymuszenie
+					Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
+					# pochodna ciśnienia
+					dp = self.diff_pressure(Q_act, p, 0, Qz)
+					# pochodna przepływu przez zawór
+					dQz = self.prv.diff_flow_rate(p, Qz)
+					# zapis wartości do słownika
+					sim_res['t'].append(t)
+					sim_res['Q_act'].append(Q_act * 60000)
+					sim_res['p'].append(p / 10**5)
+					sim_res['Qz'].append(Qz * 60000)
+					# metoda Eulera
+					p = euler(p, dp, dt)
+					Qz = euler(Qz, dQz, dt)
+					#if Qz >= (Qp_meas[i]/60000):
+					#	Qz = Qp_meas[i]/60000
+					t += dt
+			
+			elif type(self.prv) == PressureReliefValveComplex:
+				p, pt, xg, vg, xt, vt, Qz = 0, 0, 0, 0, 0, 0, 0
+				# utworzenie pustego słownika z wynikami symulacji
+				sim_res = {
+					't' : [],
+					'Q_act' : [],
+					'p' : [],
+					'Qz' : [],
+					'xg' : [],
+					'vg' : [],
+					'xt' : [],
+					'vt' : [],
+					}
+				for i in range(i_max):
+					# wymuszenie
+					Q_act = self.actuation(t, t_start, tr, Qp_meas[i])
+					# pochodna ciśnienia
+					dp = self.diff_pressure(Q_act, p, 0, Qz)
+					# pochodne od zaworu
+					dpt, dxg, dvg, dxt, dvt = ( 
+						self.prv.diff_equations(p, pt, xg, vg, xt, vt)
+						)
+					# zapis wartości do słownika
+					sim_res['t'].append(t)
+					sim_res['Q_act'].append(Q_act * 60000)
+					sim_res['p'].append(p / 10**5)
+					sim_res['Qz'].append(Qz * 60000)
+					sim_res['xg'].append(xg * 1000)
+					sim_res['vg'].append(vg)
+					sim_res['xt'].append(xt)
+					sim_res['vt'].append(vt)
+					# metoda Eulera
+					p = euler(p, dp, dt)
+					pt = euler(pt, dpt, dt)
+					xg = euler(xg, vg, dt)
+					vg = euler(vg, dvg, dt)
+					xt = euler(xt, vt, dt)
+					vt = euler(vt, dvt, dt)
+					Qz = self.prv.valve_flow_rate(p, pt, xt, xg)
+					t += dt
+					
 		
 		return sim_res
 		
