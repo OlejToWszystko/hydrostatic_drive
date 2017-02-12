@@ -28,8 +28,8 @@ class PressureReliefValveComplex():
 		self.Cg = Cg
 		self.ksg = ksg
 		self.kmi = kmi
-		self.mg = mg
-		self.msg = msg
+		self.mg = mg * 0.001
+		self.msg = msg * 0.001
 		self.mgz = self.mg + 1/3 * self.msg
 		self.poppetArea = self.area(self.dg)
 		self.adj_force = adj_force
@@ -38,16 +38,16 @@ class PressureReliefValveComplex():
 		
 		self.dtl = dtl * 0.001
 		self.Cst = Cst
-		self.xt0 = xt0
+		self.xt0 = xt0 * 0.001
 		self.kst = kst
 		self.dd = dd * 0.001
 		self.Cd = Cd
 		self.fd = self.area(self.dd)
 		self.kmi_t = kmi_t
-		self.mt = mt
-		self.mst = mst
+		self.mt = mt * 0.001
+		self.mst = mst * 0.001
 		self.mtz = self.mt + 1/3 * self.mst 
-		self.ckt = ckt
+		self.ckt = ckt * 10 ** (-12)
 		self.spoolArea = self.area(self.dtl)
 		
 		self.ro = ro
@@ -125,8 +125,7 @@ class PressureReliefValveComplex():
 		przez dławik, działającą na tłoczek głównego stopnia zaworu.
 		'''
 		P_damp = (
-			(self.ro * self.spoolArea ** 3) / (2 * (self.Cd ** 2) * 
-			(self.fd ** 2)) * vt ** 2
+			(self.ro * self.spoolArea ** 3) / (2 * (self.Cd ** 2) * (self.fd ** 2)) * vt ** 2
 			)
 			
 		return P_damp
@@ -143,6 +142,9 @@ class PressureReliefValveComplex():
 		'''
 		Metoda obliczająca natężenie przepływu w dławiku tłoczka.
 		'''
+		if pt > p:
+			pt = p
+		
 		Qd = self.Cd * self.fd * sqrt(2 * (p - pt) / self.ro)
 		
 		return Qd
@@ -153,6 +155,9 @@ class PressureReliefValveComplex():
 		Metoda obliczająca natężenie przepływu przez szczelinę 
 		utworzoną przez tłoczek.
 		'''
+		if p < 0:
+			p = 0
+			
 		Qt = self.Cst * pi * self.dtl * xt * sqrt(2 * p / self.ro)
 		
 		return Qt
@@ -162,6 +167,9 @@ class PressureReliefValveComplex():
 		'''
 		Metoda obliczająca natężenie przepływu przez grzybek zaworu.
 		'''
+		if pt < 0:
+			pt = 0
+			
 		Qg = self.Cg * xg * self.l2z * sqrt(2 * pt / self.ro)
 		
 		return Qg
